@@ -84,10 +84,6 @@ class Secure
      */
     public function setFile($data = '')
     {
-        if (! \is_file($data)) {
-            throw new Exception('Unable to locate the specified file.');
-        }
-
         if ($this->NOFILE) {
             $this->data = (static function () use ($data) {
                 for ($i = 0; $i < strlen($data) / 4096; $i++) {
