@@ -164,6 +164,18 @@ $ignoreErrors[] = [
 	'path' => __DIR__ . '/src/Secure.php',
 ];
 $ignoreErrors[] = [
+	'message' => '#^Strict comparison using \\=\\=\\= between \'AES\' and \'AES\' will always evaluate to true\\.$#',
+	'identifier' => 'identical.alwaysTrue',
+	'count' => 1,
+	'path' => __DIR__ . '/src/Secure.php',
+];
+$ignoreErrors[] = [
+	'message' => '#^Strict comparison using \\=\\=\\= between \'SHA512\' and \'SHA512\' will always evaluate to true\\.$#',
+	'identifier' => 'identical.alwaysTrue',
+	'count' => 1,
+	'path' => __DIR__ . '/src/Secure.php',
+];
+$ignoreErrors[] = [
 	'message' => '#^Parameter \\#2 \\$length of function fread expects int\\<1, max\\>, int\\<0, max\\> given\\.$#',
 	'identifier' => 'argument.type',
 	'count' => 1,

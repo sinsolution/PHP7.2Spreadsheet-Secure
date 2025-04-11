@@ -71,7 +71,7 @@ class Secure
         /**
          * Check using binary?
          */
-        public bool $NOFILE = false
+        public bool $NOFILE = false,
     ) {
     }
 
@@ -149,7 +149,7 @@ class Secure
                 'cipherAlgorithm' => 'AES', // Cipher algorithm to use. Excel uses AES.
                 'cipherChaining'  => 'ChainingModeCBC', // Cipher chaining mode to use. Excel uses CBC.
                 'saltValue'       => (array) unpack('C*', random_bytes(16)), // Random value to use as encryption salt. Excel uses 16 bytes.
-                'hashAlgorithm'   => 'sha512', // Hash algorithm to use. Excel uses SHA512.
+                'hashAlgorithm'   => 'SHA512', // Hash algorithm to use. Excel uses SHA512.
                 'hashSize'        => 64, // The size of the hash in bytes. SHA512 results in 64-byte hashes
                 'blockSize'       => 16, // The number of bytes used to encrypt one block of data. It MUST be at least 2, no greater than 4096, and a multiple of 2. Excel uses 16
                 'spinCount'       => 100000, // The number of times to iterate on a hash of a password. It MUST NOT be greater than 10,000,000. Excel uses 100,000.
@@ -157,12 +157,17 @@ class Secure
             ],
         ];
 
+        $lowerKeyHashAlgo       = \strtolower($encryptionInfo['key']['hashAlgorithm']);
+        $lowerPackageHashAlgo   = $encryptionInfo['key']['hashAlgorithm'] === $encryptionInfo['package']['hashAlgorithm'] ? $lowerKeyHashAlgo : \strtolower($encryptionInfo['package']['hashAlgorithm']);
+        $lowerKeyCipherAlgo     = \strtolower($encryptionInfo['key']['cipherAlgorithm']);
+        $lowerPackageCipherAlgo = $encryptionInfo['key']['cipherAlgorithm'] === $encryptionInfo['package']['cipherAlgorithm'] ? $lowerKeyCipherAlgo : \strtolower($encryptionInfo['package']['cipherAlgorithm']);
+
         // Package Encryption
         $encryptedPackage = $this->_cryptPackage(
             true,
-            $encryptionInfo['package']['cipherAlgorithm'],
+            $lowerPackageCipherAlgo,
             $encryptionInfo['package']['cipherChaining'],
-            $encryptionInfo['package']['hashAlgorithm'],
+            $lowerPackageHashAlgo,
             $encryptionInfo['package']['blockSize'],
             $encryptionInfo['package']['saltValue'],
             $this->data,
@@ -179,41 +184,41 @@ class Secure
         $hmacKey = unpack('C*', random_bytes(64));
         // Then create an initialization vector using the package encryption info and the appropriate block key.
         $hmacKeyIV = $this->_createIV(
-            $encryptionInfo['package']['hashAlgorithm'],
+            $lowerPackageHashAlgo,
             $encryptionInfo['package']['saltValue'],
             $encryptionInfo['package']['blockSize'],
-            $this->_block_keys['dataIntegrity']['hmacKey']
+            $this->_block_keys['dataIntegrity']['hmacKey'],
         );
 
         // Use the package key and the IV to encrypt the HMAC key
         $encryptedHmacKey = $this->_crypt(
             true,
-            $encryptionInfo['package']['cipherAlgorithm'],
+            $lowerPackageCipherAlgo,
             $encryptionInfo['package']['cipherChaining'],
             $packageKey,
             $hmacKeyIV,
-            $hmacKey
+            $hmacKey,
         );
 
         // Now create the HMAC
-        $hmacValue = $this->_hmac($encryptionInfo['package']['hashAlgorithm'], $hmacKey, $encryptedPackage['tmpFile']);
+        $hmacValue = $this->_hmac($lowerPackageHashAlgo, $hmacKey, $encryptedPackage['tmpFile']);
 
         // Next generate an initialization vector for encrypting the resulting HMAC value.
         $hmacValueIV = $this->_createIV(
-            $encryptionInfo['package']['hashAlgorithm'],
+            $lowerPackageHashAlgo,
             $encryptionInfo['package']['saltValue'],
             $encryptionInfo['package']['blockSize'],
-            $this->_block_keys['dataIntegrity']['hmacValue']
+            $this->_block_keys['dataIntegrity']['hmacValue'],
         );
 
         // Now encrypt the value
         $encryptedHmacValue = $this->_crypt(
             true,
-            $encryptionInfo['package']['cipherAlgorithm'],
+            $lowerPackageCipherAlgo,
             $encryptionInfo['package']['cipherChaining'],
             $packageKey,
             $hmacValueIV,
-            $hmacValue
+            $hmacValue,
         );
 
         // Put the encrypted key and value on the encryption info
@@ -227,21 +232,21 @@ class Secure
         // Convert the password to an encryption key
         $key = $this->_convertPasswordToKey(
             $password,
-            $encryptionInfo['key']['hashAlgorithm'],
+            $lowerKeyHashAlgo,
             $encryptionInfo['key']['saltValue'],
             $encryptionInfo['key']['spinCount'],
             $encryptionInfo['key']['keyBits'],
-            $this->_block_keys['key']
+            $this->_block_keys['key'],
         );
 
         // // Encrypt the package key with the
         $encryptionInfo['key']['encryptedKeyValue'] = $this->_crypt(
             true,
-            $encryptionInfo['key']['cipherAlgorithm'],
+            $lowerKeyCipherAlgo,
             $encryptionInfo['key']['cipherChaining'],
             $key,
             $encryptionInfo['key']['saltValue'],
-            $packageKey
+            $packageKey,
         );
 
         // Verifier hash with random byte array for hashing
@@ -250,44 +255,44 @@ class Secure
         // Create an encryption key from the password for the input
         $verifierHashInputKey = $this->_convertPasswordToKey(
             $password,
-            $encryptionInfo['key']['hashAlgorithm'],
+            $lowerKeyHashAlgo,
             $encryptionInfo['key']['saltValue'],
             $encryptionInfo['key']['spinCount'],
             $encryptionInfo['key']['keyBits'],
-            $this->_block_keys['verifierHash']['input']
+            $this->_block_keys['verifierHash']['input'],
         );
 
         // Use the key to encrypt the verifier input
         $encryptionInfo['key']['encryptedVerifierHashInput'] = $this->_crypt(
             true,
-            $encryptionInfo['key']['cipherAlgorithm'],
+            $lowerKeyCipherAlgo,
             $encryptionInfo['key']['cipherChaining'],
             $verifierHashInputKey,
             $encryptionInfo['key']['saltValue'],
-            $verifierHashInput
+            $verifierHashInput,
         );
 
         // Create a hash of the input
-        $verifierHashValue = $this->_hash($encryptionInfo['key']['hashAlgorithm'], $verifierHashInput);
+        $verifierHashValue = $this->_hash($lowerKeyHashAlgo, $verifierHashInput);
 
         // Create an encryption key from the password for the hash
         $verifierHashValueKey = $this->_convertPasswordToKey(
             $password,
-            $encryptionInfo['key']['hashAlgorithm'],
+            $lowerKeyHashAlgo,
             $encryptionInfo['key']['saltValue'],
             $encryptionInfo['key']['spinCount'],
             $encryptionInfo['key']['keyBits'],
-            $this->_block_keys['verifierHash']['value']
+            $this->_block_keys['verifierHash']['value'],
         );
 
         // Use the key to encrypt the hash value
         $encryptionInfo['key']['encryptedVerifierHashValue'] = $this->_crypt(
             true,
-            $encryptionInfo['key']['cipherAlgorithm'],
+            $lowerKeyCipherAlgo,
             $encryptionInfo['key']['cipherChaining'],
             $verifierHashValueKey,
             $encryptionInfo['key']['saltValue'],
-            $verifierHashValue
+            $verifierHashValue,
         );
 
         // Build the encryption info buffer
@@ -430,7 +435,7 @@ class Secure
      */
     private function _crypt($encrypt, $cipherAlgorithm, $cipherChaining, $key, $iv, $input)
     {
-        $algorithm = strtolower($cipherAlgorithm) . '-' . (count($key) * 8);
+        $algorithm = $cipherAlgorithm . '-' . (count($key) * 8);
 
         if ($cipherChaining === 'ChainingModeCBC') {
             $algorithm .= '-cbc';
@@ -446,7 +451,7 @@ class Secure
                 $algorithm,
                 pack('C*', ...$key),
                 OPENSSL_NO_PADDING,
-                pack('C*', ...$iv)
+                pack('C*', ...$iv),
             );
             $cipher = (array) unpack('C*', (string) $ciphertext);
         }
@@ -463,8 +468,7 @@ class Secure
      */
     private function _hash($algorithm, ...$buffers)
     {
-        $algorithm = strtolower($algorithm);
-        $buffers   = array_merge([], ...$buffers);
+        $buffers = [...[], ...$buffers];
 
         if (! in_array($algorithm, hash_algos(), true)) {
             throw new Exception("Hash algorithm '{$algorithm}' not supported!"); // @codeCoverageIgnore
@@ -489,10 +493,10 @@ class Secure
     private function _hmac($algorithm, $key, $fileName)
     {
         return (array) unpack('C*', hash_hmac_file(
-            strtolower($algorithm),
+            $algorithm,
             $fileName,
             pack('C*', ...$key),
-            true
+            true,
         ));
     }
 
@@ -511,20 +515,16 @@ class Secure
     {
         // Password must be in unicode buffer
         $passwordBuffer = array_map('hexdec', str_split(bin2hex(mb_convert_encoding($password, 'UTF-16LE', 'utf-8')), 2));
+
         // Generate the initial hash
         $key = $this->_hash($hashAlgorithm, $saltValue, $passwordBuffer);
-
-        // Now regenerate until spin count
-        // Prepare for hash(). Algo is known to be OK. Previous call to _hash()
-        // would have thrown an exception if not.
-        $algo = strtolower($hashAlgorithm);
 
         // Get back to a binary string
         $bKey = pack('C*', ...$key);
 
         // Now regenerate until spin count
         for ($i = 0; $i < $spinCount; $i++) {
-            $bKey = hash($algo, pack('V', $i) . $bKey, true);
+            $bKey = hash($hashAlgorithm, pack('V', $i) . $bKey, true);
         }
 
         // Convert binary string back to unpacked C* form

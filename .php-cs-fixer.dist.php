@@ -38,5 +38,5 @@ return Factory::create(new CodeIgniter4(), $overrides, $options)->forLibrary(
     'PHPDevsr/PHPSpreadsheet-Secure',
     'Denny Septian Panggabean',
     'xamidimura@gmail.com',
-    2024
+    2024,
 );
