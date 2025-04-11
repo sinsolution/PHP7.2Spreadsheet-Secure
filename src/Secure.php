@@ -84,10 +84,14 @@ class Secure
      */
     public function setFile($data = '')
     {
+        if (! \is_file($data)) {
+            throw new Exception('Unable to locate the specified file.');
+        }
+
         if ($this->NOFILE) {
             $this->data = (static function () use ($data) {
                 for ($i = 0; $i < strlen($data) / 4096; $i++) {
-                    yield unpack('C*', substr($data, $i * 4096, 4096));
+                    yield (array) unpack('C*', substr($data, $i * 4096, 4096));
                 }
             });
 
@@ -98,7 +102,7 @@ class Secure
             $fp = fopen($data, 'rb');
 
             while (! feof($fp)) {
-                yield unpack('C*', fread($fp, 4096));
+                yield (array) unpack('C*', (string) fread($fp, 4096));
             }
             fclose($fp);
             unset($fp);
@@ -134,12 +138,12 @@ class Secure
             throw new Exception('Output filepath cannot be NULL when NOFILE is false');
         }
 
-        $packageKey     = unpack('C*', random_bytes(32));
+        $packageKey     = (array) unpack('C*', random_bytes(32));
         $encryptionInfo = [
             'package' => [
                 'cipherAlgorithm' => 'AES', // Cipher algorithm to use. Excel uses AES.
                 'cipherChaining'  => 'ChainingModeCBC', // Cipher chaining mode to use. Excel uses CBC.
-                'saltValue'       => unpack('C*', random_bytes(16)), // Random value to use as encryption salt. Excel uses 16 bytes.
+                'saltValue'       => (array) unpack('C*', random_bytes(16)), // Random value to use as encryption salt. Excel uses 16 bytes.
                 'hashAlgorithm'   => 'SHA512', // Hash algorithm to use. Excel uses SHA512.
                 'hashSize'        => 64, // The size of the hash in bytes. SHA512 results in 64-byte hashes
                 'blockSize'       => 16, // The number of bytes used to encrypt one block of data. It MUST be at least 2, no greater than 4096, and a multiple of 2. Excel uses 16
@@ -148,8 +152,8 @@ class Secure
             'key' => [ // Info on the encryption of the package key.
                 'cipherAlgorithm' => 'AES', // Cipher algorithm to use. Excel uses AES.
                 'cipherChaining'  => 'ChainingModeCBC', // Cipher chaining mode to use. Excel uses CBC.
-                'saltValue'       => unpack('C*', random_bytes(16)), // Random value to use as encryption salt. Excel uses 16 bytes.
-                'hashAlgorithm'   => 'SHA512', // Hash algorithm to use. Excel uses SHA512.
+                'saltValue'       => (array) unpack('C*', random_bytes(16)), // Random value to use as encryption salt. Excel uses 16 bytes.
+                'hashAlgorithm'   => 'sha512', // Hash algorithm to use. Excel uses SHA512.
                 'hashSize'        => 64, // The size of the hash in bytes. SHA512 results in 64-byte hashes
                 'blockSize'       => 16, // The number of bytes used to encrypt one block of data. It MUST be at least 2, no greater than 4096, and a multiple of 2. Excel uses 16
                 'spinCount'       => 100000, // The number of times to iterate on a hash of a password. It MUST NOT be greater than 10,000,000. Excel uses 100,000.
@@ -165,14 +169,18 @@ class Secure
             $encryptionInfo['package']['hashAlgorithm'],
             $encryptionInfo['package']['blockSize'],
             $encryptionInfo['package']['saltValue'],
+            $this->data,
             $packageKey,
-            $this->data
         );
-        // Data Integrity
 
-        // Create the data integrity fields used by clients for integrity checks.
-        // First generate a random array of bytes to use in HMAC. The docs say to use the same length as the key salt, but Excel seems to use 64.
-        $hmacKey = (array) unpack('C*', random_bytes(64));
+        /**
+         * Create the data integrity fields used by clients for integrity checks.
+         *
+         * First generate a random array of bytes to use in HMAC.
+         * The docs say to use the same length as the key salt, but Excel seems to use 64.
+         *
+         * @var list<int|string> $hmacKey */
+        $hmacKey = unpack('C*', random_bytes(64));
         // Then create an initialization vector using the package encryption info and the appropriate block key.
         $hmacKeyIV = $this->_createIV(
             $encryptionInfo['package']['hashAlgorithm'],
@@ -240,11 +248,8 @@ class Secure
             $packageKey
         );
 
-        // Verifier hash
-
-        // Create a random byte array for hashing
-        $verifierHashInput = random_bytes(16);
-        $verifierHashInput = unpack('C*', $verifierHashInput);
+        // Verifier hash with random byte array for hashing
+        $verifierHashInput = (array) unpack('C*', random_bytes(16));
 
         // Create an encryption key from the password for the input
         $verifierHashInputKey = $this->_convertPasswordToKey(
@@ -301,7 +306,7 @@ class Secure
         $filesize = (int) filesize($encryptedPackage['tmpFile']);
 
         for ($i = 0; $i < ($filesize / 4096); $i++) {
-            $unpackEncryptedPackage = unpack('C*', file_get_contents($encryptedPackage['tmpFile'], false, null, $i * 4096, 4096));
+            $unpackEncryptedPackage = unpack('C*', (string) file_get_contents($encryptedPackage['tmpFile'], false, null, $i * 4096, 4096));
             $OLE2->append(pack('C*', ...$unpackEncryptedPackage));
         }
 
@@ -312,6 +317,8 @@ class Secure
         if ($this->NOFILE) {
             $filePath = tempnam(sys_get_temp_dir(), 'NOFILE');
         }
+
+        $filePath = (string) $filePath;
 
         $root->save($filePath);
 
@@ -329,8 +336,11 @@ class Secure
     {
         $ENCRYPTION_INFO_PREFIX = [0x04, 0x00, 0x04, 0x00, 0x40, 0x00, 0x00, 0x00];
 
-        // Map the object into the appropriate XML structure. Buffers are encoded in base 64.
-
+        /**
+         * Map the object into the appropriate XML structure. Buffers are encoded in base 64.
+         *
+         * @var array<string, array<int|string, array<int|string, mixed>|string>|string> $encryptionInfoNode
+         */
         $encryptionInfoNode = [
             'name'       => 'encryption',
             'attributes' => [
@@ -391,7 +401,7 @@ class Secure
                 ],
             ],
         ];
-        $byte_array = unpack('C*', $this->arrayToXml($encryptionInfoNode));
+        $byte_array = (array) unpack('C*', $this->arrayToXml($encryptionInfoNode));
 
         array_unshift($byte_array, ...$ENCRYPTION_INFO_PREFIX);
 
@@ -407,11 +417,21 @@ class Secure
      */
     private function arrayToXml(array $array = [])
     {
-        $this->build($array, $rootNode = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><encryption/>'));
+        $this->build($rootNode = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><encryption/>'), $array);
 
         return str_replace(['\r', '\n', '\r\n', '\n\r'], '', (string) $rootNode->asXML());
     }
 
+    /**
+     * Crypt method
+     *
+     * @param string                        $cipherAlgorithm
+     * @param string                        $cipherChaining
+     * @param array                         $key
+     * @param bool                          $encrypt
+     * @param array<int|string, int|string> $iv
+     * @param array<int|string, int|string> $input
+     */
     private function _crypt($encrypt, $cipherAlgorithm, $cipherChaining, $key, $iv, $input)
     {
         $algorithm = strtolower($cipherAlgorithm) . '-' . (count($key) * 8);
@@ -432,12 +452,19 @@ class Secure
                 OPENSSL_NO_PADDING,
                 pack('C*', ...$iv)
             );
-            $cipher = unpack('C*', $ciphertext);
+            $cipher = (array) unpack('C*', (string) $ciphertext);
         }
 
         return $cipher;
     }
 
+    /**
+     * Hashing
+     *
+     * @param string $algorithm
+     *
+     * @return array<int|string, int|string>
+     */
     private function _hash($algorithm, ...$buffers)
     {
         $algorithm = strtolower($algorithm);
@@ -451,17 +478,17 @@ class Secure
 
         hash_update($ctx, pack('C*', ...$buffers));
 
-        return unpack('C*', hash_final($ctx, true));
+        return (array) unpack('C*', hash_final($ctx, true));
     }
 
     /**
      * Hmac
      *
-     * @param string       $algorithm Algorithm
-     * @param list<string> $key       Key
-     * @param string       $fileName  Filename
+     * @param string           $algorithm Algorithm
+     * @param list<int|string> $key       Key
+     * @param string           $fileName  Filename
      *
-     * @return list<string>
+     * @return array<int|string, int|string>
      */
     private function _hmac($algorithm, $key, $fileName)
     {
@@ -473,9 +500,15 @@ class Secure
         ));
     }
 
+    /**
+     * Create Unsigned Integer 32-bit Buffer
+     *
+     * @param int $value
+     * @param int $bufferSize
+     */
     private function _createUInt32LEBuffer($value, $bufferSize = 4)
     {
-        return array_pad(array_values(unpack('C*', pack('V', $value))), $bufferSize, 0);
+        return array_pad(array_values((array) unpack('C*', pack('V', $value))), $bufferSize, 0);
     }
 
     private function _convertPasswordToKey($password, $hashAlgorithm, $saltValue, $spinCount, $keyBits, $blockKey)
@@ -499,7 +532,7 @@ class Secure
         }
 
         // Convert binary string back to unpacked C* form
-        $key = unpack('C*', $bKey);
+        $key = (array) unpack('C*', $bKey);
 
         // Now generate the final hash
         $key = $this->_hash($hashAlgorithm, $key, $blockKey);
@@ -516,6 +549,14 @@ class Secure
         return $key;
     }
 
+    /**
+     * Create initialization vector
+     *
+     * @param string                        $hashAlgorithm
+     * @param array<int|string, int|string> $saltValue
+     * @param int                           $blockSize
+     * @param mixed                         $blockKey
+     */
     private function _createIV($hashAlgorithm, $saltValue, $blockSize, $blockKey)
     {
         // Create the block key from the current index
@@ -535,6 +576,18 @@ class Secure
         return $iv;
     }
 
+    /**
+     * Package Crypt
+     *
+     * @param bool                          $encrypt
+     * @param string                        $cipherAlgorithm
+     * @param string                        $cipherChaining
+     * @param string                        $hashAlgorithm
+     * @param int                           $blockSize
+     * @param array<int|string, int|string> $saltValue
+     * @param mixed                         $input
+     * @param array<int|string, int|string> $key
+     */
     private function _cryptPackage(
         $encrypt,
         $cipherAlgorithm,
@@ -542,12 +595,12 @@ class Secure
         $hashAlgorithm,
         $blockSize,
         $saltValue,
-        $key,
-        $input
+        $input,
+        $key = [],
     ) {
-        $tmpOutputChunk      = tempnam(sys_get_temp_dir(), 'outputChunk');
-        $tmpFileHeaderLength = tempnam(sys_get_temp_dir(), 'fileHeaderLength');
-        $tmpFile             = tempnam(sys_get_temp_dir(), 'file');
+        $tmpOutputChunk      = (string) tempnam(sys_get_temp_dir(), 'outputChunk');
+        $tmpFileHeaderLength = (string) tempnam(sys_get_temp_dir(), 'fileHeaderLength');
+        $tmpFile             = (string) tempnam(sys_get_temp_dir(), 'file');
 
         if (is_callable($input) && is_a($in = $input(), 'Generator')) {
             $inputCount = 0;
@@ -589,12 +642,12 @@ class Secure
     /**
      * Build XML
      *
-     * @param array<string, mixed> $data     Data
-     * @param SimpleXMLElement     $rootNode Node
+     * @param array<string, array<string, array<string, string>|string>|int|string> $data     Data
+     * @param SimpleXMLElement                                                      $rootNode Node
      *
      * @return void
      */
-    private function build($data, $rootNode)
+    private function build(SimpleXMLElement $rootNode, array $data = [])
     {
         // https://stackoverflow.com/questions/7717227/unable-to-add-attribute-with-namespace-prefix-using-php-simplexml
         foreach ($data as $k => $v) {
@@ -612,7 +665,7 @@ class Secure
                     if ($k === 'children') {
                         $isNamespace = count(explode(':', $vv['name'])) === 2;
                         $r           = $isNamespace ? $rootNode->addChild('xmlns:' . $vv['name'], '') : $rootNode->addChild($vv['name'], '');
-                        $this->build($vv, $r);
+                        $this->build($r, $vv);
                     }
                 }
             }
