@@ -1,5 +1,5 @@
 {
-    "name": "phpdevsr/phpspreadsheet-secure",
+    "name": "phpdevsr/php74spreadsheet-secure",
     "description": "Secure your spreadsheet with Encrypt and Password Protect",
     "license": "MIT",
     "type": "library",
@@ -17,11 +17,16 @@
             "name": "Denny Septian Panggabean",
             "email": "xamidimura@gmail.com",
             "role": "Developer"
+        },
+        {
+            "name": "Luiz Neves",
+            "email": "luiz.felipe.neves3@gmail.com",
+            "role": "Developer"
         }
     ],
-    "homepage": "https://github.com/PHPDevsr/PHPSpreadsheet-Secure",
+    "homepage": "https://github.com/luizneves01/PHP7.4Spreadsheet-Secure",
     "require": {
-        "php": "^8.1 || ^8.2 || ^8.3",
+        "php": "^7.4 || ^8.1 || ^8.2 || ^8.3",
         "ext-openssl": "*",
         "ext-hash": "*",
         "ext-simplexml": "*",
