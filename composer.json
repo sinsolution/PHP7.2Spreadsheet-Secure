@@ -1,5 +1,5 @@
 {
-    "name": "phpdevsr/php74spreadsheet-secure",
+    "name": "php74devsr/php74spreadsheet-secure",
     "description": "Secure your spreadsheet with Encrypt and Password Protect",
     "license": "MIT",
     "type": "library",
