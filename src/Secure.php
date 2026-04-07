@@ -11,7 +11,6 @@
 
 namespace PHPDevsr\Spreadsheet;
 
-use Closure;
 use Exception;
 use OLE;
 use OLE_PPS_File;
@@ -23,7 +22,7 @@ class Secure
     /**
      * Data Binary
      */
-    public Closure $data;
+    public $data;
 
     /**
      * Password
