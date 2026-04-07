@@ -27,19 +27,19 @@ class Secure
     /**
      * Password
      */
-    public string $password = '';
+    public $password = '';
 
     /**
      * Buffer Offset
      */
-    public int $_offset = 8;
+    public $_offset = 8;
 
     /**
      * Buffer Chunk Size
      */
-    public int $_chunk_size = 4096;
+    public $_chunk_size = 4096;
 
-    public bool $NOFILE;
+    public $NOFILE;
 
     /**
      * Block Keys
