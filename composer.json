@@ -1,5 +1,5 @@
 {
-    "name": "php74devsr/php74spreadsheet-secure",
+    "name": "php72devsr/php72spreadsheet-secure",
     "description": "Secure your spreadsheet with Encrypt and Password Protect",
     "license": "MIT",
     "type": "library",
@@ -24,7 +24,7 @@
             "role": "Developer"
         }
     ],
-    "homepage": "https://github.com/luizneves01/PHP7.4Spreadsheet-Secure",
+    "homepage": "https://github.com/luizneves01/PHP7.2Spreadsheet-Secure",
     "require": {
         "php": "^7.2 || ^8.1 || ^8.2 || ^8.3",
         "ext-openssl": "*",
