@@ -26,7 +26,7 @@
     ],
     "homepage": "https://github.com/luizneves01/PHP7.4Spreadsheet-Secure",
     "require": {
-        "php": "^7.4 || ^8.1 || ^8.2 || ^8.3",
+        "php": "^7.2 || ^8.1 || ^8.2 || ^8.3",
         "ext-openssl": "*",
         "ext-hash": "*",
         "ext-simplexml": "*",
